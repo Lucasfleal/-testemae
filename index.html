@@ -151,7 +151,7 @@
 
         // 1. CARREGAR O CSV AUTOMATICAMENTE AO ABRIR A PÁGINA
         window.onload = function() {
-            Papa.parse("produtos.csv", {
+            Papa.parse("produtos.xlsx", {
                 download: true, // Diz para a biblioteca buscar o arquivo na pasta
                 header: true,
                 skipEmptyLines: true,
