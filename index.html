@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-PT">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -53,24 +53,6 @@
             text-align: center;
         }
 
-        /* Estilização do Input de Ficheiro */
-        .file-upload-wrapper {
-            position: relative;
-            overflow: hidden;
-            display: inline-block;
-            width: 100%;
-        }
-
-        .file-upload-wrapper input[type="file"] {
-            font-size: 100px;
-            position: absolute;
-            left: 0;
-            top: 0;
-            opacity: 0;
-            cursor: pointer;
-            height: 100%;
-        }
-
         .btn {
             background-color: var(--primary);
             color: white;
@@ -88,11 +70,9 @@
             gap: 8px;
         }
 
-        .btn:hover { background-color: var(--primary-hover); }
-        .btn:disabled { background-color: #9ca3af; cursor: not-allowed; }
-        
         .btn-success { background-color: var(--success); }
         .btn-success:hover { background-color: #15803d; }
+        .btn:disabled { background-color: #9ca3af; cursor: not-allowed; }
 
         #reader {
             width: 100%;
@@ -100,6 +80,7 @@
             overflow: hidden;
             display: none;
             border: 2px solid #e5e7eb;
+            margin-top: 16px;
         }
 
         /* Ocultar elementos desnecessários da biblioteca html5-qrcode */
@@ -140,9 +121,9 @@
             border-radius: 20px;
             font-size: 0.8rem;
             font-weight: 600;
-            background-color: #e5e7eb;
-            color: var(--text-muted);
-            margin-top: 16px;
+            background-color: #fef08a;
+            color: #854d0e;
+            margin-bottom: 16px;
         }
     </style>
 </head>
@@ -150,54 +131,56 @@
 
     <div class="header">
         <h1>Consulta de Produtos</h1>
-        <p>Carregue a tabela e leia o código de barras</p>
+        <p>Aponte a câmera para o código de barras</p>
     </div>
 
-    <div class="card" id="uploadCard">
-        <div class="file-upload-wrapper">
-            <button class="btn">📁 Selecionar Ficheiro CSV</button>
-            <input type="file" id="csvFileInput" accept=".csv" />
-        </div>
-        <div class="status-badge" id="uploadStatus">Nenhum ficheiro carregado</div>
-    </div>
-
-    <div class="card" id="cameraCard" style="display: none;">
-        <button class="btn btn-success" id="startCameraBtn" style="margin-bottom: 16px;">📷 Ligar Câmara</button>
+    <div class="card" id="cameraCard">
+        <div class="status-badge" id="dbStatus">⏳ Carregando banco de dados...</div>
+        <button class="btn btn-success" id="startCameraBtn" style="display: none;">📷 Ligar Câmera</button>
         <div id="reader"></div>
     </div>
 
     <div class="card result-container" id="resultCard">
         <div class="product-name" id="pName">Nome do Produto</div>
-        <div class="product-price" id="pPrice">€ 0,00</div>
+        <div class="product-price" id="pPrice">R$ 0,00</div>
     </div>
 
     <script>
         let produtosDb = [];
         let html5QrCode;
 
-        // 1. LER O FICHEIRO CSV
-        document.getElementById('csvFileInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            document.getElementById('uploadStatus').innerText = "A carregar...";
-
-            Papa.parse(file, {
+        // 1. CARREGAR O CSV AUTOMATICAMENTE AO ABRIR A PÁGINA
+        window.onload = function() {
+            Papa.parse("produtos.csv", {
+                download: true, // Diz para a biblioteca buscar o arquivo na pasta
                 header: true,
                 skipEmptyLines: true,
                 complete: function(results) {
                     produtosDb = results.data;
-                    document.getElementById('uploadCard').style.display = 'none';
-                    document.getElementById('cameraCard').style.display = 'block';
-                    document.getElementById('uploadStatus').innerText = `${produtosDb.length} produtos carregados!`;
+                    
+                    // Atualiza a interface
+                    const statusBadge = document.getElementById('dbStatus');
+                    statusBadge.innerText = `✅ ${produtosDb.length} produtos carregados!`;
+                    statusBadge.style.backgroundColor = "#dcfce7";
+                    statusBadge.style.color = "#166534";
+
+                    // Mostra o botão da câmera
+                    document.getElementById('startCameraBtn').style.display = 'flex';
+                },
+                error: function(err) {
+                    const statusBadge = document.getElementById('dbStatus');
+                    statusBadge.innerText = "❌ Erro ao carregar produtos.csv";
+                    statusBadge.style.backgroundColor = "#fee2e2";
+                    statusBadge.style.color = "#991b1b";
+                    console.error("Erro no PapaParse:", err);
                 }
             });
-        });
+        };
 
-        // 2. INICIAR A CÂMARA AO CLICAR NO BOTÃO
+        // 2. INICIAR A CÂMERA AO CLICAR NO BOTÃO
         document.getElementById('startCameraBtn').addEventListener('click', function() {
             this.style.display = 'none'; // Esconde o botão
-            document.getElementById('reader').style.display = 'block'; // Mostra a área da câmara
+            document.getElementById('reader').style.display = 'block'; // Mostra a área da câmera
 
             html5QrCode = new Html5Qrcode("reader");
             
@@ -210,13 +193,14 @@
             html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
                 buscarProduto(decodedText);
             }).catch(err => {
-                console.error("Erro na câmara: ", err);
-                alert("Erro ao aceder à câmara. Verifique as permissões do navegador.");
-                this.style.display = 'block'; // Mostra o botão novamente em caso de erro
+                console.error("Erro na câmera: ", err);
+                alert("Erro ao acessar a câmera. Verifique as permissões do navegador.");
+                this.style.display = 'flex'; // Mostra o botão novamente em caso de erro
+                document.getElementById('reader').style.display = 'none';
             });
         });
 
-        // 3. PROCURAR PRODUTO E MOSTRAR NO ECRÃ
+        // 3. PROCURAR PRODUTO E MOSTRAR NA TELA
         function buscarProduto(codigoBarras) {
             const produto = produtosDb.find(p => p["GTIN/EAN"] === codigoBarras);
             
