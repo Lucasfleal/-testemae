@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leitor de Produtos</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 15px; background-color: #f4f4f9; color: #333; }
+        h2 { color: #2c3e50; }
+        #reader { width: 100%; max-width: 500px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden; }
+        #result { margin-top: 20px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: none; }
+        .product-name { font-size: 1.2em; font-weight: bold; color: #34495e; }
+        .product-price { color: #27ae60; font-size: 1.8em; font-weight: bold; margin-top: 10px; }
+        .file-upload { margin-bottom: 20px; padding: 15px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        input[type="file"] { margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <h2>Consulta de Preços</h2>
+    
+    <div class="file-upload" id="upload-section">
+        <label for="csvFileInput"><strong>1. Selecione o arquivo CSV:</strong></label><br>
+        <input type="file" id="csvFileInput" accept=".csv" />
+    </div>
+
+    <div id="reader"></div>
+
+    <div id="result">
+        <div class="product-name" id="pName">Nome do Produto</div>
+        <div class="product-price" id="pPrice">R$ 0,00</div>
+    </div>
+
+    <script>
+        let produtosDb = [];
+
+        // 1. LER O ARQUIVO CSV
+        document.getElementById('csvFileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Transforma o CSV em um Array do JavaScript
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    produtosDb = results.data;
+                    document.getElementById('upload-section').style.display = 'none'; // Esconde o botão de upload
+                    alert(`Pronto! ${produtosDb.length} produtos carregados.`);
+                    iniciarCamera(); // Inicia a câmera após o carregamento
+                }
+            });
+        });
+
+        // 2. LIGAR A CÂMERA E CONFIGURAR O LEITOR DE CÓDIGO DE BARRAS
+        function iniciarCamera() {
+            const html5QrCode = new Html5Qrcode("reader");
+            
+            // Configuração focada em códigos de barras (retangular)
+            const config = { 
+                fps: 10, 
+                qrbox: { width: 250, height: 100 } 
+            };
+
+            // "environment" força o uso da câmera traseira do celular
+            html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
+                buscarProduto(decodedText);
+            }).catch(err => {
+                console.error("Erro ao acessar a câmera: ", err);
+                alert("Não foi possível acessar a câmera. Verifique as permissões.");
+            });
+        }
+
+        // 3. BUSCAR O PRODUTO LIDO NO BANCO DE DADOS
+        function buscarProduto(codigoBarras) {
+            // Procura a linha onde a coluna GTIN/EAN é igual ao código lido
+            const produto = produtosDb.find(p => p["GTIN/EAN"] === codigoBarras);
+
+            const resultDiv = document.getElementById('result');
+            const nameDiv = document.getElementById('pName');
+            const priceDiv = document.getElementById('pPrice');
+
+            resultDiv.style.display = "block";
+
+            if (produto) {
+                nameDiv.innerText = produto["Descrição"] || "Produto sem descrição";
+                
+                // Puxa o preço. O arquivo CSV enviado tem um espaço no nome da coluna: " Preço "
+                let preco = produto[" Preço "] || produto["Preço"] || "R$ 0,00"; 
+                priceDiv.innerText = preco;
+            } else {
+                nameDiv.innerText = "Produto não encontrado";
+                priceDiv.innerText = "---";
+            }
+        }
+    </script>
+</body>
+</html>
