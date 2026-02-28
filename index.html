@@ -1,99 +1,246 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-PT">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Leitor de Produtos</title>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 15px; background-color: #f4f4f9; color: #333; }
-        h2 { color: #2c3e50; }
-        #reader { width: 100%; max-width: 500px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden; }
-        #result { margin-top: 20px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: none; }
-        .product-name { font-size: 1.2em; font-weight: bold; color: #34495e; }
-        .product-price { color: #27ae60; font-size: 1.8em; font-weight: bold; margin-top: 10px; }
-        .file-upload { margin-bottom: 20px; padding: 15px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        input[type="file"] { margin-top: 10px; }
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --success: #16a34a;
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .header h1 { font-size: 1.5rem; color: var(--primary); margin-bottom: 8px; }
+        .header p { font-size: 0.9rem; color: var(--text-muted); }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 400px;
+            padding: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        /* Estilização do Input de Ficheiro */
+        .file-upload-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-upload-wrapper input[type="file"] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+            height: 100%;
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 14px 20px;
+            font-size: 1rem;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:hover { background-color: var(--primary-hover); }
+        .btn:disabled { background-color: #9ca3af; cursor: not-allowed; }
+        
+        .btn-success { background-color: var(--success); }
+        .btn-success:hover { background-color: #15803d; }
+
+        #reader {
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            display: none;
+            border: 2px solid #e5e7eb;
+        }
+
+        /* Ocultar elementos desnecessários da biblioteca html5-qrcode */
+        #reader__dashboard_section_csr span, 
+        #reader__dashboard_section_swaplink { display: none !important; }
+
+        .result-container {
+            display: none;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .product-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: var(--text-main);
+            line-height: 1.3;
+        }
+
+        .product-price {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--success);
+            background: #dcfce7;
+            padding: 10px 20px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            background-color: #e5e7eb;
+            color: var(--text-muted);
+            margin-top: 16px;
+        }
     </style>
 </head>
 <body>
 
-    <h2>Consulta de Preços</h2>
-    
-    <div class="file-upload" id="upload-section">
-        <label for="csvFileInput"><strong>1. Selecione o arquivo CSV:</strong></label><br>
-        <input type="file" id="csvFileInput" accept=".csv" />
+    <div class="header">
+        <h1>Consulta de Produtos</h1>
+        <p>Carregue a tabela e leia o código de barras</p>
     </div>
 
-    <div id="reader"></div>
+    <div class="card" id="uploadCard">
+        <div class="file-upload-wrapper">
+            <button class="btn">📁 Selecionar Ficheiro CSV</button>
+            <input type="file" id="csvFileInput" accept=".csv" />
+        </div>
+        <div class="status-badge" id="uploadStatus">Nenhum ficheiro carregado</div>
+    </div>
 
-    <div id="result">
+    <div class="card" id="cameraCard" style="display: none;">
+        <button class="btn btn-success" id="startCameraBtn" style="margin-bottom: 16px;">📷 Ligar Câmara</button>
+        <div id="reader"></div>
+    </div>
+
+    <div class="card result-container" id="resultCard">
         <div class="product-name" id="pName">Nome do Produto</div>
-        <div class="product-price" id="pPrice">R$ 0,00</div>
+        <div class="product-price" id="pPrice">€ 0,00</div>
     </div>
 
     <script>
         let produtosDb = [];
+        let html5QrCode;
 
-        // 1. LER O ARQUIVO CSV
+        // 1. LER O FICHEIRO CSV
         document.getElementById('csvFileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            // Transforma o CSV em um Array do JavaScript
+            document.getElementById('uploadStatus').innerText = "A carregar...";
+
             Papa.parse(file, {
                 header: true,
                 skipEmptyLines: true,
                 complete: function(results) {
                     produtosDb = results.data;
-                    document.getElementById('upload-section').style.display = 'none'; // Esconde o botão de upload
-                    alert(`Pronto! ${produtosDb.length} produtos carregados.`);
-                    iniciarCamera(); // Inicia a câmera após o carregamento
+                    document.getElementById('uploadCard').style.display = 'none';
+                    document.getElementById('cameraCard').style.display = 'block';
+                    document.getElementById('uploadStatus').innerText = `${produtosDb.length} produtos carregados!`;
                 }
             });
         });
 
-        // 2. LIGAR A CÂMERA E CONFIGURAR O LEITOR DE CÓDIGO DE BARRAS
-        function iniciarCamera() {
-            const html5QrCode = new Html5Qrcode("reader");
+        // 2. INICIAR A CÂMARA AO CLICAR NO BOTÃO
+        document.getElementById('startCameraBtn').addEventListener('click', function() {
+            this.style.display = 'none'; // Esconde o botão
+            document.getElementById('reader').style.display = 'block'; // Mostra a área da câmara
+
+            html5QrCode = new Html5Qrcode("reader");
             
-            // Configuração focada em códigos de barras (retangular)
             const config = { 
                 fps: 10, 
-                qrbox: { width: 250, height: 100 } 
+                qrbox: { width: 250, height: 100 },
+                aspectRatio: 1.0
             };
 
-            // "environment" força o uso da câmera traseira do celular
             html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
                 buscarProduto(decodedText);
             }).catch(err => {
-                console.error("Erro ao acessar a câmera: ", err);
-                alert("Não foi possível acessar a câmera. Verifique as permissões.");
+                console.error("Erro na câmara: ", err);
+                alert("Erro ao aceder à câmara. Verifique as permissões do navegador.");
+                this.style.display = 'block'; // Mostra o botão novamente em caso de erro
             });
-        }
+        });
 
-        // 3. BUSCAR O PRODUTO LIDO NO BANCO DE DADOS
+        // 3. PROCURAR PRODUTO E MOSTRAR NO ECRÃ
         function buscarProduto(codigoBarras) {
-            // Procura a linha onde a coluna GTIN/EAN é igual ao código lido
             const produto = produtosDb.find(p => p["GTIN/EAN"] === codigoBarras);
-
-            const resultDiv = document.getElementById('result');
+            
+            const resultCard = document.getElementById('resultCard');
             const nameDiv = document.getElementById('pName');
             const priceDiv = document.getElementById('pPrice');
 
-            resultDiv.style.display = "block";
+            resultCard.style.display = "block";
 
             if (produto) {
                 nameDiv.innerText = produto["Descrição"] || "Produto sem descrição";
-                
-                // Puxa o preço. O arquivo CSV enviado tem um espaço no nome da coluna: " Preço "
-                let preco = produto[" Preço "] || produto["Preço"] || "R$ 0,00"; 
+                let preco = produto[" Preço "] || produto["Preço"] || "---"; 
                 priceDiv.innerText = preco;
+                
+                // Feedback visual de sucesso
+                priceDiv.style.color = "var(--success)";
+                priceDiv.style.backgroundColor = "#dcfce7";
             } else {
                 nameDiv.innerText = "Produto não encontrado";
                 priceDiv.innerText = "---";
+                
+                // Feedback visual de erro
+                priceDiv.style.color = "#dc2626";
+                priceDiv.style.backgroundColor = "#fee2e2";
             }
         }
     </script>
